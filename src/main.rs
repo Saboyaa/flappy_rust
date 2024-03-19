@@ -12,10 +12,13 @@ use crate::piston::ButtonEvent;
 use piston::Key;
 use piston::ButtonState;
 use piston::Button;
-use std::default;
 use std::path::Path;
 use graphics::rectangle::square;
 use opengl_graphics::TextureSettings;
+use rand::{thread_rng, Rng};
+
+const SPACE: f64 = 100.0;
+const SPACE2: f64 = 80.0;
 pub struct App {
     gl: GlGraphics, // OpenGL drawing backend.
     rotation: f64,  
@@ -32,7 +35,6 @@ impl App {
         use graphics::*;
 
         const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
 
         // let square = rectangle::square(0.0, 0.0, 50.0);
         let back = Image::new().rect(rectangle::rectangle_by_corners(0.0 ,0.0,args.window_size[0],args.window_size[1]));
@@ -55,9 +57,12 @@ impl App {
             back.draw(&self.texture_back, &DrawState::default() , transform2, gl);
             image.draw(&self.texture_bird, &DrawState::default() , transform, gl);
         });
+        
         self.canos.render(&mut self.gl,&args);
-        if self.timer >= 2.0{
+        if self.timer >= 230.0{
             self.timer = 0.0;
+            self.canos.x = args.window_size[0];
+            self.canos.y = thread_rng().gen_range(SPACE2..args.window_size[1]-SPACE2);
         }
     }
 
@@ -76,6 +81,12 @@ impl App {
             _ => last_vertical,
         };
     }
+    fn colision_check(&mut self,args: &RenderArgs)-> bool {
+        if ((args.window_size[0]/8.0-self.canos.x-SPACE2/2.0).abs() < SPACE2/2.0) && ((self.y - self.canos.y).abs() > SPACE ){
+            return true;
+        }
+        else{return false;}
+    }
 }
 
 pub struct Canos{
@@ -88,9 +99,7 @@ impl Canos {
     fn render(&self, gl: &mut GlGraphics, args: &RenderArgs) {
         use graphics::*;
 
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
-        const SPACE: f64 = 100.0;
-        const SPACE2: f64 = 80.0;
+
 
         let rec1 = rectangle::rectangle_by_corners(self.x ,self.y + SPACE,self.x + SPACE2,args.window_size[1]);
         let rec2 = rectangle::rectangle_by_corners(self.x ,self.y - SPACE,self.x + SPACE2,0.0);
@@ -107,7 +116,7 @@ impl Canos {
         });
     }
     fn update(&mut self, args: &UpdateArgs) {
-        self.x -= args.dt*200.0 ;
+        self.x -= args.dt*300.0 ;
 
     }
 
@@ -117,7 +126,7 @@ fn main() {
     let opengl = OpenGL::V3_2;
 
     // Create a Glutin window.
-    let mut window: Window = WindowSettings::new("flappy-rust", [1200, 800])
+    let mut window: Window = WindowSettings::new("flappy-rust", [600, 800])
         .graphics_api(opengl)
         .exit_on_esc(true)
         .build()
@@ -129,19 +138,21 @@ fn main() {
         rotation: 0.0,
         y: 0.0,
         vertical_velocity:0.0,
-        canos: Canos{x:1100.0,y:400.0,texture_cano:Texture::from_path(Path::new("src/img/cano.png"), &TextureSettings::new()).unwrap(),texture_cano_cima:Texture::from_path(Path::new("src/img/cano_cima.png"), &TextureSettings::new()).unwrap()},
+        canos: Canos{x:600.0,y:400.0,texture_cano:Texture::from_path(Path::new("src/img/cano.png"), &TextureSettings::new()).unwrap(),texture_cano_cima:Texture::from_path(Path::new("src/img/cano_cima.png"), &TextureSettings::new()).unwrap()},
         timer: 0.0,
         texture_back:Texture::from_path(Path::new("src/img/background.png"), &TextureSettings::new()).unwrap(),
         texture_bird:Texture::from_path(Path::new("src/img/bird.png"), &TextureSettings::new()).unwrap(),
     };
+    let mut game_over:bool = false;
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             app.render(&args);
+            if app.colision_check(&args) {game_over = true;};
         }
 
         if let Some(args) = e.update_args() {
-            app.update(&args);
+            if !game_over {app.update(&args);};
         }
 
         if let Some(args) = e.button_args() {
